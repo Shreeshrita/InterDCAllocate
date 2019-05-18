@@ -2,39 +2,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import pdb
 
-def min_flow_allocate(flows_in_edges, edge_capacities):
-    min_flow_allocation = 100000
-    for edge in edge_capacities:
-        # print(edge)
-        if len(flows_in_edges[edge]) > 0:
-            per_flow_alloc = edge_capacities[edge] / len(flows_in_edges[edge])
-        min_flow_allocation = min(min_flow_allocation, per_flow_alloc)
-    print("Min flow allocation in iteration 0 = {}".format(min_flow_allocation))
-    return  min_flow_allocation
-
-def allocate_demand(flows, edge_capacities, demand_vector):
-    for i in flows:
-        for path in flows[i]:
-            possible = True
-            for index in range(0, len(path) - 1):
-                tuple = (str(path[index]), str(path[index + 1]), 0)
-                if tuple not in flows_in_edges:
-                    print("Not Possible to satisfy flow = {} on path = {}".format(i,
-                                                                                  path))  # TODO: if not possible revert
-                    possible = False
-                    break
-            if (possible):
-                # print("Allocating {} for flow {} and path = {}".format(min_flow_allocation, i, flows[i]))
-                for index in range(0, len(path) - 1):
-                    tuple = (str(path[index]), str(path[index + 1]), 0)
-                    # print("Subtracting for flow = {}, path = {}, tuple = {}".format(i, path, tuple))
-                    edge_capacities[tuple] -= min_flow_allocation
-
-            demand_vector[i] += min_flow_allocation
-
-    print("Edge Capacities after iteration 0 = {}".format(edge_capacities))
-    print("Demand Vectors = {}".format(demand_vector))
-    return demand_vector,edge_capacities
+from flowCalculate import allocate_demand, min_flow_allocate
 
 G=nx.MultiDiGraph()
 G.add_nodes_from(["E1","E2","E3","F1","F2","F3", "A","B","C","D","E","F"],supply=0)
@@ -114,20 +82,28 @@ flows_in_edges = (nx.get_edge_attributes(G,"flows"))
 print("Edge Capacities are {}".format(edge_capacities))
 print("No of edges = {}".format(len(edge_capacities)))
 
+print("----------")
+print(flows)
+print("----------")
+print(flows_in_edges)
+print("----------")
 for i in flows:
     for path in flows[i]:
+        print(path)
         for index in range(0,len(path)-1):
             tuple = (str(path[index]), str(path[index+1]),0)
+            print(tuple)
             if tuple in flows_in_edges:
                 # print(flows_in_edges[tuple])
                 if i not in flows_in_edges[tuple]:
                     flows_in_edges[tuple].append(i)
 
+print("=========")
 print("Flows allocation to edges = {}".format(flows_in_edges))
 demand_vector = {1: 0, 2: 0, 3: 0}
 min_flow_allocation = min_flow_allocate(flows_in_edges, edge_capacities)
 
-demand_vector, edge_capacities = allocate_demand(flows, edge_capacities, demand_vector)
+demand_vector, edge_capacities = allocate_demand(flows, edge_capacities, demand_vector, flows_in_edges, min_flow_allocation)
 remove_flows = []
 for customer in demand_vector:
     print(flows[customer][0][-1])
@@ -136,6 +112,7 @@ for customer in demand_vector:
     if (G.node[flows[customer][0][0]]['supply']==0) and (G.node[flows[customer][0][-1]]['supply']==0):
         remove_flows.append(customer)
 print("Nodes and supply = {}".format(nx.get_node_attributes(G,"supply")))
+print(remove_flows)
 
 for i in remove_flows:
     for path in flows[i]:
@@ -163,10 +140,10 @@ for i in flows:
             if tuple  in remove_edge_tuples:
                 flows[i].remove(path)
                 break
-
+print("==========================DONE====================")
 print("New flows are = {} and flows_in_edges = {}".format(flows,flows_in_edges))
 
-
+# Itr 2
 edge_capacities = (nx.get_edge_attributes(G,"capacity"))
 flows_in_edges = (nx.get_edge_attributes(G,"flows"))
 
@@ -175,8 +152,56 @@ print("No of edges = {}".format(len(edge_capacities)))
 
 min_flow_allocation = min_flow_allocate(flows_in_edges, edge_capacities)
 
-demand_vector, edge_capacities = allocate_demand(flows, edge_capacities, demand_vector)
+demand_vector, edge_capacities = allocate_demand(flows, edge_capacities, demand_vector, flows_in_edges, min_flow_allocation)
 
+# Newly Added Code
+edge_capacities = (nx.get_edge_attributes(G,"capacity"))
+remove_flows = []
+for customer in demand_vector:
+    print(flows[customer][0][-1])
+    G.node[flows[customer][0][0]]['supply'] -= min_flow_allocation
+    G.node[flows[customer][0][-1]]['supply'] +=  min_flow_allocation
+    if (G.node[flows[customer][0][0]]['supply']==0) and (G.node[flows[customer][0][-1]]['supply']==0):
+        remove_flows.append(customer)
+print("Nodes and supply = {}".format(nx.get_node_attributes(G,"supply")))
 # for edge in edge_capacities:
 
+for i in remove_flows:
+    for path in flows[i]:
+        for index in range(0,len(path)-1):
+            tuple = (str(path[index]), str(path[index+1]),0)
+            if tuple in flows_in_edges:
+                # print(flows_in_edges[tuple])
+                if i in flows_in_edges[tuple]:
+                    flows_in_edges[tuple].remove(i)
+    flows.pop(i)
+print(flows)
 
+remove_edge_tuples = []
+for edge in edge_capacities:
+    if edge_capacities[edge] <=0:
+        print("Edge Capacity <= 0 for edge {}".format(edge))
+        print("Edge points = {} and {}".format(str(edge[0]), str(edge[1])))
+        remove_edge_tuples.append((str(edge[0]), str(edge[1]), 0))
+        G.remove_edge(str(edge[0]),str(edge[1]))
+
+for i in flows:
+    for path in flows[i]:
+        for index in range(0, len(path) - 1):
+            tuple = (str(path[index]), str(path[index + 1]), 0)
+            if tuple  in remove_edge_tuples:
+                flows[i].remove(path)
+                break
+
+print("==========================DONE====================")
+print("New flows are = {} and flows_in_edges = {}".format(flows,flows_in_edges))
+# Itr 3
+edge_capacities = (nx.get_edge_attributes(G,"capacity"))
+flows_in_edges = (nx.get_edge_attributes(G,"flows"))
+
+print("Edge Capacities are {}".format(edge_capacities))
+print("No of edges = {}".format(len(edge_capacities)))
+
+min_flow_allocation = min_flow_allocate(flows_in_edges, edge_capacities)
+
+demand_vector, edge_capacities = allocate_demand(flows, edge_capacities, demand_vector, flows_in_edges, min_flow_allocation)
